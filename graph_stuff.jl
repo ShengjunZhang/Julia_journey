@@ -16,7 +16,7 @@ using LinearAlgebra
 This function is used to generate a random graph based on 
     Erdos-Renyi model.
 # Arguments
-- 'n_agents::Integer > 2': the number of agents or nodes in a graph
+- 'n_agents::Int64 > 2': the number of agents or nodes in a graph
 - 'connection::Float64 (0, 1)': the probability of connection
 """
 function randomgraph(n_agents::Int64, connection::Float64)
