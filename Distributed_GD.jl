@@ -1,5 +1,5 @@
 """
-This is a demo of distributed (sub)gradient descent in Julia.
+This is a demo of distributed (sub)gradient descent methods in Julia.
 
 Reference: 
 [1] Distributed Subgradient Methods for Multi-Agent Optimization, 
