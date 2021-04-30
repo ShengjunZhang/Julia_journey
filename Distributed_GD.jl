@@ -27,15 +27,15 @@ W = metropolis_hastings(incidence(Adj))
     Problem formulation and gradient
 """
 #=
-    In this demo, just used x^2 as an example 
+    In this demo, just used 1/2(x^2) as an example 
 =#
 
 function cost(x)::Real
-    return sum(x .^ 2)
+    return 0.5 * sum(x .^ 2)
 end
 
 function grad(x)::Array
-    return 2 .* x
+    return  x
 end
 
 function reshape_grad(grad_val, dimension)
@@ -59,8 +59,8 @@ kron_mat = Matrix{Float64}(I, dimension, dimension)
 W_comm = kron(W, kron_mat)
 iteration = 500
 
-α = 0.01
-x_init = rand(MersenneTwister(2021), Float32, (n_agents, dimension))
+α0 = 0.01
+x_init = rand(MersenneTwister(2021), Float16, (n_agents, dimension))
 x = x_init[:]
 g_init = [grad(x_init[i, :]) for i = 1 : n_agents]
 ∇ = reshape_grad(g_init, dimension)
@@ -68,6 +68,9 @@ g_init = [grad(x_init[i, :]) for i = 1 : n_agents]
 history_cost = [sum(cost(x_init[i, :]) for i = 1 : n_agents)]
 
 for i = 1: iteration
+    # α = α0 / (5 + i) with α0 = 1
+    # α = α0 / sqrt(i) with α0 = 0.1
+    α = α0
     x = W_comm * x - α * ∇
     x_cur = reshape(x, :, dimension)
     push!(history_cost, 
