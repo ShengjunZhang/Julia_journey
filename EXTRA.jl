@@ -1,10 +1,11 @@
 """
-This is a demo of distributed (sub)gradient descent methods in Julia.
+This is a demo of EXTRA in Julia.
 
 Reference: 
-[1] Distributed Subgradient Methods for Multi-Agent Optimization, 
-    Angelia Nedic´ and Asuman Ozdaglar, 
-    https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4749425
+[1] EXTRA: An Exact First-Order Algorithm for Decentralized Consensus 
+           Optimization 
+    Wei Shi, Qing Ling, Gang Wu, and Wotao Yin
+    https://epubs.siam.org/doi/10.1137/14096668X
 
 Author: Daniel Zhang
 Copyright (c) 2021
@@ -35,19 +36,24 @@ function reshape_grad(grad_val, dimension)
 end
 
 """
-    Perform the DGD algorithms
+    Perform the EXTRA algorithm
 """
 
-function DGD(x_init, W_comm, iteration, optimal, α0, n_agents, dimension)
+function EXTRA(x_init, W_comm, W_tilde_comm, iteration, optimal, α0, n_agents, dimension)
     x = x_init[:]
     g_init = [grad(x_init[i, :]) for i = 1 : n_agents]
     ∇ = reshape_grad(g_init, dimension)
     history_cost = [sum(cost(x_init[i, :]) for i = 1 : n_agents)]
+    y = zeros(size(x)[1], 1)
     for i = 1: iteration
         # α = α0 / (5 + i) with α0 = 1
         # α = α0 / sqrt(i) with α0 = 0.1
         α = α0
-        x = W_comm * x - α * ∇
+        x = W_comm * x - α * (∇ + y)
+        y = y + W_tilde_comm * x
+        if i % 100 == 0
+            println(∇)
+        end    
         x_cur = reshape(x, :, dimension)
         push!(history_cost, 
             sum(cost(x_cur[i, :]) - optimal for i = 1 : n_agents))
@@ -69,20 +75,22 @@ include("graph.jl")
 n_agents, connection = 50, 0.4
 error, Adj, degree, xy = randomgraph(n_agents, connection)
 W = metropolis_hastings(incidence(Adj))
+W_tilde = Matrix{Float64}(I, n_agents, n_agents) - W
 
 dimension = 10
 optimal = 0
 W_comm = kron(W, Matrix{Float64}(I, dimension, dimension))
+W_tilde_comm = kron(W_tilde, Matrix{Float64}(I, dimension, dimension))
 iteration = 500
-α0 = 0.01
-x_init = rand(MersenneTwister(2021), Float16, (n_agents, dimension))
-history_cost_DGD = DGD(x_init, W_comm, iteration, optimal, α0, n_agents, dimension)
+α0 = 0.1
+x_init = rand(MersenneTwister(2021), Float64, (n_agents, dimension))
+history_cost_EXTRA = EXTRA(x_init, W_comm, W_tilde_comm, iteration, optimal, α0, n_agents, dimension)
 
 PyPlot.clf()
-PyPlot.plot((history_cost_DGD/n_agents).^2)
+PyPlot.plot((history_cost_EXTRA/n_agents).^2)
 ax = gca()
 ax.set_yscale("log")
 xlabel("Iterations")
 ylabel("Residual")
-legend(["Distributed (Sub)gradient Methods"])
+legend(["EXTRA"])
 display(gcf())
