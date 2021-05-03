@@ -12,6 +12,7 @@ Copyright (c) 2021
 Email: zsjcameron@gmail.com
 """
 
+using ProgressBars
 # Cost function
 function cf(x, λ, α, z, y, batch_size, n_agents)
     temp = -y*x'*z
@@ -53,9 +54,8 @@ x_init = ones(dim, 1).+2
 cost = []
 x_ = x_init
 x = []
-
-for i = 1: iter_max
-    println(i)
+for i in ProgressBar(1: iter_max)
+    # println(iter, "iteration: $i")
     # for i = 1: 2500
     #     grad =  gc(x_, λ, α, features[:, i], labels[i], 1, n_agents)
     #     # println(grad)
