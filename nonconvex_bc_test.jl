@@ -27,11 +27,17 @@ function gc(x, λ, α, z, y, batch_size, n_agents)
            ((2*λ*α*x)./((1 .+ α*x.^2).^2))
 end
 
+# Evaluate but nonsense because of the nature of data in this case.
+function eval_bc(x_opt, features)
+    temp = x_opt'*features
+    return log(1 + exp(temp[1]))
+end
+
 # Generate data
 
-dim             = 10                       # problem dimension
-batch_size      = 5                       # batch size
-n_agents        = 50                       # agent number
+dim             = 50                       # problem dimension
+batch_size      = 700                       # batch size
+n_agents        = 10                       # agent number
 total_num_data  = batch_size * n_agents    # total number of data
 
 λ = 0.001
@@ -42,39 +48,73 @@ features = randn(MersenneTwister(2021), Float64, (dim, total_num_data))
 labels = rand(1:2, (1, total_num_data))
 labels[labels .== 2] .= -1
 
+
+training_num = 5000
+validation_num = 1000
+testing_num = 1000
+
+training_features = features[:, 1:training_num]
+training_labels = labels[1: training_num]
+
+validation_features = features[:, training_num+1: training_num+validation_num]
+validation_labels = labels[training_num+1: training_num+validation_num]
+
+testing_features = features[:, training_num+validation_num+1: end]
+testing_labels = labels[training_num+validation_num+1: end]
+
+
 iter_max = 5000
-α_ss = 0.9
+α_ss = 0.05
 
 #=
 Centralized Stochastic gradient descent, use all the data to perform, 
 i.e. 2500 data.
 =#
 
-x_init = ones(dim, 1).+2
+x_init = zeros(dim, 1).+2
 cost = []
 x_ = x_init
 x = []
 for i in ProgressBar(1: iter_max)
-    # println(iter, "iteration: $i")
-    # for i = 1: 2500
-    #     grad =  gc(x_, λ, α, features[:, i], labels[i], 1, n_agents)
-    #     # println(grad)
-    # end
-    idx = rand(1:total_num_data, (1, 1))
+    idx = rand(1:training_num, (1, 1))
     grad = 0
     for i in idx
-        grad = grad .+ gc(x_, λ, α, features[:, i], labels[i], 1, n_agents)
+        grad = grad .+ gc(x_, λ, α, training_features[:, i], training_labels[i], 1, 1)
     end
-    # grad =  gc(x_, λ, α, features[:, idx[1]], labels[idx[1]], 1, n_agents)
     x_ -=  α_ss*grad
     push!(x, x_)
+    # Validation
     cost_temp = 0
-    for i = 1: 250
-        cost_temp = cost_temp .+ cf(x_, λ, α, features[:, i], labels[i], 1, n_agents)
+    for i = 1: validation_num
+        cost_temp = cost_temp .+ cf(x_, λ, α, validation_features[:, i], validation_labels[i], 1, 1)
         # println(grad)
     end
-    push!(cost, sum(cost_temp)/250)
+    push!(cost, sum(cost_temp)/total_num_data)
 end
+
+function eval_bc(x_opt, features)
+    temp = x_opt'*features
+    return log(1 + exp(temp[1]))
+end
+
+# Accuracy
+x_opt = x[end]
+count = 0
+for i = 1: testing_num
+    temp = eval_bc(x_opt, testing_features[:, i])
+    if temp >= 0
+        temp = 1
+    else
+        temp = -1
+    end
+    # println(temp)
+    if temp == testing_labels[i]
+        count += 1
+        continue
+    end
+end
+
+acc = count / testing_num
 
 using PyPlot
 PyPlot.clf()
@@ -82,5 +122,6 @@ PyPlot.plot(cost)
 ax = gca()
 # ax.set_yscale("log")
 xlabel("Iterations")
-ylabel("Cost")
+ylabel("Validation Loss")
 display(gcf())
+
